@@ -14,7 +14,7 @@ describe('Zod (Advanced Exercises)', () => {
    *
    * Use z.lazy() to reference the schema inside itself.
    */
-  const categorySchema = z.lazy(() =>
+  const categorySchema = z.lazy<any>(() =>
     z.object({
       name: z.string(),
       subcategories: z.array(categorySchema).optional(),
@@ -53,11 +53,7 @@ describe('Zod (Advanced Exercises)', () => {
    */
   const complexDataSchema = z.preprocess(
     (input: unknown) => {
-      if (
-        typeof input === 'string' &&
-        input.startsWith('{') &&
-        input.endsWith('}')
-      ) {
+      if (typeof input === 'string' && input.startsWith('{') && input.endsWith('}')) {
         try {
           return JSON.parse(input);
         } catch {
@@ -122,15 +118,11 @@ describe('Zod (Advanced Exercises)', () => {
 
   describe('Challenge 3: Asynchronous Validation', () => {
     it('resolves with a valid (available) username', async () => {
-      await expect(asyncUsernameSchema.parseAsync('newUser123')).resolves.toBe(
-        'newUser123',
-      );
+      await expect(asyncUsernameSchema.parseAsync('newUser123')).resolves.toBe('newUser123');
     });
 
     it('rejects a taken username', async () => {
-      await expect(
-        asyncUsernameSchema.parseAsync('takenUser'),
-      ).rejects.toThrowError();
+      await expect(asyncUsernameSchema.parseAsync('takenUser')).rejects.toThrowError();
     });
   });
 
@@ -152,9 +144,7 @@ describe('Zod (Advanced Exercises)', () => {
   describe('Challenge 4: Custom Error Maps', () => {
     it('fails with a custom error message for invalid type', () => {
       // Expect that myFriendlySchema.parse(...) throws your custom error string
-      expect(() => myFriendlySchema.parse(123)).toThrowError(
-        /Expected a friendly message/,
-      );
+      expect(() => myFriendlySchema.parse(123)).toThrowError(/Expected a friendly message/);
     });
   });
 

@@ -1,7 +1,9 @@
 import cors from 'cors';
-import express from 'express';
+import express, { RequestHandler, Request } from 'express';
 import type { Database } from 'sqlite';
 import { handleError } from './handle-error.js';
+import { z, ZodSchema } from 'zod';
+import { CreateTaskSchema, TaskSchema, UpdateTaskSchema } from 'busy-bee-schema';
 
 export async function createServer(database: Database) {
   const app = express();
@@ -17,20 +19,59 @@ export async function createServer(database: Database) {
     `UPDATE tasks SET title = ?, description = ?, completed = ? WHERE id = ?`,
   );
 
-  app.get('/tasks', async (req, res) => {
-    const { completed } = req.query;
-    const query = completed === 'true' ? completedTasks : incompleteTasks;
+  const validateBody =
+    <T>(schema: ZodSchema<T>): RequestHandler<NonNullable<unknown>, unknown, T> =>
+    (req, res, next) => {
+      try {
+        schema.parse(req.body);
+        next();
+      } catch (e) {
+        return handleError(req, res, e);
+      }
+    };
 
-    try {
-      const tasks = await query.all();
-      return res.json(tasks);
-    } catch (error) {
-      return handleError(req, res, error);
-    }
-  });
+  const validateQueryParams =
+    <T>(
+      schema: ZodSchema<T>,
+    ): RequestHandler<NonNullable<unknown>, unknown, unknown, Request['query'] & T> =>
+    (req, res, next) => {
+      try {
+        schema.parse(req.query);
+        next();
+      } catch (e) {
+        return handleError(req, res, e);
+      }
+    };
+
+  const validateParams =
+    <T>(schema: ZodSchema<T>): RequestHandler<T> =>
+    (req, res, next) => {
+      try {
+        schema.parse(req.params);
+        next();
+      } catch (e) {
+        return handleError(req, res, e);
+      }
+    };
+
+  app.get(
+    '/tasks',
+    validateQueryParams(z.object({ completed: z.coerce.boolean() })),
+    async (req, res) => {
+      const { completed } = req.query;
+      const query = completed ? completedTasks : incompleteTasks;
+
+      try {
+        const tasks = await query.all();
+        return res.json(tasks);
+      } catch (error) {
+        return handleError(req, res, error);
+      }
+    },
+  );
 
   // Get a specific task
-  app.get('/tasks/:id', async (req, res) => {
+  app.get('/tasks/:id', validateParams(z.object({ id: z.coerce.number() })), async (req, res) => {
     try {
       const { id } = req.params;
       const task = await getTask.get([id]);
@@ -43,12 +84,11 @@ export async function createServer(database: Database) {
     }
   });
 
-  app.post('/tasks', async (req, res) => {
+  app.post('/tasks', validateBody(CreateTaskSchema), async (req, res) => {
     try {
-      const task = req.body;
-      if (!task.title) return res.status(400).json({ message: 'Title is required' });
+      const { title, description } = req.body;
 
-      await createTask.run([task.title, task.description]);
+      await createTask.run([title, description]);
       return res.status(201).json({ message: 'Task created successfully!' });
     } catch (error) {
       return handleError(req, res, error);
@@ -58,14 +98,14 @@ export async function createServer(database: Database) {
   // Update a task
   app.put('/tasks/:id', async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = z.object({ id: z.coerce.number() }).parse(req.params);
 
-      const previous = await getTask.get([id]);
-      const updates = req.body;
+      const previous = TaskSchema.parse(await getTask.get([id]));
+      const updates = UpdateTaskSchema.parse(req.body);
       const task = { ...previous, ...updates };
 
       await updateTask.run([task.title, task.description, task.completed, id]);
-      return res.status(200).json({message: 'Task updated successfully'});
+      return res.status(200).json({ message: 'Task updated successfully' });
     } catch (error) {
       return handleError(req, res, error);
     }

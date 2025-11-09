@@ -3,27 +3,35 @@ import express from 'express';
 import getPort from 'get-port';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 
 export const app = express();
 const port = await getPort({ port: 3000 });
 
 app.use(bodyParser.json());
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-}
+const UserSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1, 'please provide a name'),
+  email: z.string().email().min(1, 'please provide a valid email'),
+});
+
+const CreateUserSchema = UserSchema.omit({ id: true });
+const PartialUserSchema = UserSchema.partial();
+
+type User = z.infer<typeof UserSchema>;
 
 const users: User[] = [];
 
 // Create a new user
 app.post('/users', (req, res) => {
-  const { name, email } = req.body;
+  const result = CreateUserSchema.safeParse(req.body);
 
-  if (!name || !email) {
+  if (!result.success) {
     return res.status(400).json({ message: 'Name and email are required' });
   }
+
+  const { email, name } = result.data;
 
   const newUser: User = { id: uuidv4(), name, email };
 
@@ -34,19 +42,19 @@ app.post('/users', (req, res) => {
 
 // Read all users
 app.get('/users', (req, res) => {
-  const { name, email } = req.query;
+  const { name, email } = PartialUserSchema.parse(req.query);
 
   let filteredUsers = users;
 
   if (name) {
     filteredUsers = filteredUsers.filter((user) =>
-      user.name.toLowerCase().includes((name as string).toLowerCase()),
+      user.name.toLowerCase().includes(name.toLowerCase()),
     );
   }
 
   if (email) {
     filteredUsers = filteredUsers.filter((user) =>
-      user.email.toLowerCase().includes((email as string).toLowerCase()),
+      user.email.toLowerCase().includes(email.toLowerCase()),
     );
   }
 
@@ -55,9 +63,13 @@ app.get('/users', (req, res) => {
 
 // Read a single user by ID
 app.get('/users/:id', (req, res) => {
-  const { id } = req.params;
+  const result = UserSchema.pick({ id: true }).safeParse(req.params);
 
-  const user = users.find((u) => u.id === id);
+  if (!result.success) {
+    return res.status(400).json({ message: 'Please provide a valid id' });
+  }
+
+  const user = users.find((u) => u.id === result.data.id);
 
   if (!user) {
     return res.status(404).json({ message: 'User not found' });
@@ -76,7 +88,7 @@ app.put('/users/:id', (req, res) => {
     return res.status(404).json({ message: 'User not found' });
   }
 
-  const { name, email } = req.body;
+  const { name, email } = PartialUserSchema.parse(req.body);
 
   if (name) user.name = name;
   if (email) user.email = email;

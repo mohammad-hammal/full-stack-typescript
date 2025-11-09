@@ -1,4 +1,4 @@
-import { PartialTask, Task } from './types';
+import { CreateTask, Task, UpdateTask } from 'busy-bee-schema';
 
 const API_URL = 'http://localhost:4001';
 
@@ -29,7 +29,7 @@ export const getTask = async (id: string): Promise<Task> => {
   return response.json();
 };
 
-export const createTask = async (task: PartialTask): Promise<void> => {
+export const createTask = async (task: CreateTask): Promise<void> => {
   const url = new URL('/tasks', API_URL);
 
   const response = await fetch(url, {
@@ -45,7 +45,7 @@ export const createTask = async (task: PartialTask): Promise<void> => {
   }
 };
 
-export const updateTask = async (id: string, task: PartialTask): Promise<void> => {
+export const updateTask = async (id: string, task: UpdateTask): Promise<void> => {
   const url = new URL(`/tasks/${id}`, API_URL);
 
   const response = await fetch(url, {

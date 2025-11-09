@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 
-describe.todo('Zod (Advanced Exercises)', () => {
+describe('Zod (Advanced Exercises)', () => {
   /**
    * CHALLENGE 1:
    * Lazy Recursion with z.lazy()
@@ -15,7 +15,12 @@ describe.todo('Zod (Advanced Exercises)', () => {
    *
    * Use z.lazy() to reference the schema inside itself.
    */
-  const categorySchema = '🥸 IMPLEMENT ME!' as any; // e.g., z.lazy(() => z.object({...}))
+  const categorySchema = z.lazy<any>(() => {
+    return z.object({
+      name: z.string(),
+      subcategories: z.array(categorySchema).optional(),
+    });
+  });
 
   describe('Challenge 1: Recursive Data Structures', () => {
     it('parses a valid recursive structure', () => {
@@ -82,15 +87,11 @@ describe.todo('Zod (Advanced Exercises)', () => {
 
   describe('Challenge 3: Asynchronous Validation', () => {
     it('resolves with a valid (available) username', async () => {
-      await expect(asyncUsernameSchema.parseAsync('newUser123')).resolves.toBe(
-        'newUser123',
-      );
+      await expect(asyncUsernameSchema.parseAsync('newUser123')).resolves.toBe('newUser123');
     });
 
     it('rejects a taken username', async () => {
-      await expect(
-        asyncUsernameSchema.parseAsync('takenUser'),
-      ).rejects.toThrowError();
+      await expect(asyncUsernameSchema.parseAsync('takenUser')).rejects.toThrowError();
     });
   });
 
@@ -108,9 +109,7 @@ describe.todo('Zod (Advanced Exercises)', () => {
   describe('Challenge 4: Custom Error Maps', () => {
     it('fails with a custom error message for invalid type', () => {
       // Expect that myFriendlySchema.parse(...) throws your custom error string
-      expect(() => myFriendlySchema.parse(123)).toThrowError(
-        /Expected a friendly message/,
-      );
+      expect(() => myFriendlySchema.parse(123)).toThrowError(/Expected a friendly message/);
     });
   });
 
